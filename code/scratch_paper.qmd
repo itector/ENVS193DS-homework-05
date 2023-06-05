@@ -1,0 +1,203 @@
+---
+title: "scratch paper"
+format: 
+    html: 
+      toc: true
+      toc-location: left
+      code-fold: true
+      theme: yeti
+editor: visual
+execute: 
+  message: false
+  warning: false
+---
+
+## Workshop 8/9
+
+```{r packages}
+# should haves
+library(tidyverse)
+library(here)
+library(janitor)
+library(ggeffects)
+library(performance)
+library(naniar)
+library(flextable)
+library(car)
+library(broom)
+library(corrplot)
+library(AICcmodavg)
+library(GGally)
+# would be nice to have
+library(MuMIn)
+#library(equatiomatic)
+library(corrplot)
+
+```
+
+```{r reading-data}
+plant <- read_csv(here("data", "hf109-01-sarracenia.csv")) %>% 
+  # make the column names cleaner
+  clean_names() %>% 
+  # selecting the columns of interest
+  select(totmass, species, feedlevel, sla, chlorophyll, amass, num_lvs, num_phylls)
+```
+
+```{r missing-data-vis}
+gg_miss_var(plant)
+```
+
+Subsetting the data by dropping NAs:
+
+```{r subset-drop-NAs}
+plant_subset <- plant %>% 
+  drop_na(sla, chlorophyll, amass, num_lvs, num_phylls)
+```
+
+Create a correlation plot:
+
+```{r correlation-plot}
+# calculate pearson's r for numerical values only
+plant_cor <- plant_subset %>% 
+  select(feedlevel:num_phylls) %>% 
+  cor(method = "pearson")
+
+# creating a correlation plot
+corrplot(plant_cor,
+         # change the shape of what's in the cells
+         method = "ellipse",
+         addCoef.col = "black"
+         )
+```
+
+Create a plot of each variable compared against others
+
+```{r pairs-plot}
+plant_subset %>% 
+  select(species:num_phylls) %>% 
+  ggpairs()
+```
+
+Starting regression here:
+
+(ex) to determine how species and physiological characteristics predict biomass, we fit multiple linear models
+
+```{r null-and-full-models}
+# making a null model, which is represented by a one and we only want it from the plant_subset dataset
+null <- lm(totmass ~ 1, data = plant_subset)
+# now we include all of the variables
+full <- lm(totmass ~ species + feedlevel + sla + chlorophyll + amass + num_lvs + num_phylls, data = plant_subset)
+```
+
+We visually asses normality and homoscedasticity of residuals using diagnostic plots for the full model
+
+```{r full-diagnostic}
+par(mfrow = c(2,2))
+plot(full)
+```
+
+Homeoscedasticity: red line is flat, a little bit cone shaped as in it is clumped at the beginning, it is borderline homeoscedastic.
+
+Shapiro-Wilk test: null hypothesis- variable of interest are normally distributed
+
+Breush-Pagan test: null hypothesis- variable of interest has constant variance
+
+```{r}
+check_normality(full)
+check_heteroscedasticity(full)
+```
+
+Transform the response variable (take the log 10) to transform your residuals to be normal because most of the data from the field is not normal.
+
+```{r}
+full_log <- lm(log(totmass) ~ species + feedlevel + sla + chlorophyll + amass + num_lvs + num_phylls, data = plant_subset)
+
+null_log <- lm(log(totmass) ~ 1, data = plant_subset)
+
+plot(full_log)
+check_normality(full_log)
+check_heteroscedasticity(full_log)
+```
+
+Evaluate multicollinearity:
+
+```{r calculate-vif}
+car::vif(full_log)
+```
+
+We evaluated multicollinearity by calculating generalized variance inflation factor and determined that...
+
+trying models:
+
+Question: what set of predictor variables best explore the response?
+
+```{r}
+model2_log <- lm(log(totmass) ~ species, data = plant_subset)
+```
+
+check assumptions for model 2:
+
+```{r}
+plot(model2_log)
+
+check_normality(model2_log)
+check_heteroscedasticity(model2_log)
+```
+
+compare models using Akaike's Information Criterion (AIC) values:
+
+```{r}
+AICc(full_log)
+AICc(model2_log)
+AICc(null_log)
+
+MuMIn::AICc(full_log, model2_log, null_log)
+MuMIn::model.sel(full_log, model2_log, null_log)
+```
+
+The full model is the best model because it has the lowest AIC value.
+
+For homework we create 2 more model comparisons that make biological sense and comparing them to the full and null models.
+
+(ex) we compared models using AIC and chose the model with the lowest value, which was...
+
+# Results (ex)
+
+We found that the \_\_\_ model including \_\_ \_\_ \_\_ predictors best predicted \_\_\_ (model summary).
+
+include, df, f statistic, p value, r sq, alpha
+
+```{r}
+summary(full_log)
+
+table <- tidy(full_log, conf.int = TRUE) %>% 
+  # change the p-value numbers if they're really small using mutate
+  # change the estimates, st err, and t-stats to round to ___ digits
+  # mutate() %>% 
+  # make it into a flextable
+  flextable() %>% 
+  # fit it to the viewer
+  autofit()
+
+table
+```
+
+use "ggpredict()" to backtransform estimates
+
+```{r}
+model_pred <- ggpredict(full_log, terms = "species", back.transform = TRUE)
+
+plot(model_pred, add.data = TRUE)
+
+plot(ggpredict(full_log, terms = "chlorophyll", back.transform = TRUE), add.data = TRUE)
+
+plot(ggpredict(full_log, terms = "sla", back.transform = TRUE), add.data = TRUE)
+
+model_pred
+```
+
+# diff types of anova tables (dont have to do for hw)
+
+```{r}
+
+```
