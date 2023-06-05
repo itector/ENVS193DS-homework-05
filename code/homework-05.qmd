@@ -40,7 +40,7 @@ library(MuMIn)
 library(corrplot)
 ```
 
-b\. Data was called using \[here\] into an object that holds all of the data from the data set called "plant". Then \[clean_names\] was used and the following columns were chosen to be shown within "plant": totmass, species, feedlevel, sla, chlorophyll, amass, num_lvs, and num_phylls.
+Reading in the data and organizing document using the \[here\] package.
 
 ```{r reading-data}
 plant <- read_csv(here("data", "hf109-01-sarracenia.csv")) %>% 
@@ -50,22 +50,22 @@ plant <- read_csv(here("data", "hf109-01-sarracenia.csv")) %>%
   select(totmass, species, feedlevel, sla, chlorophyll, amass, num_lvs, num_phylls)
 ```
 
-c\. Missing data was visualized using \[gg_miss_var\]. The visualization shows that chlorophyll and amass have the most missing data, followed by sla, and then num_lvs and num_phylls, and the rest had no missing data. The "plant" data set was then made into a sub set to get rid of the missing data called "NAs"
+Visualizing the missing data from "plants" by using "gg_miss_var". Variables chlorophyll, amass, sla, num_phylls, and num_lvs have missing data. Variables on the y axis and \# of missing data on the x axis
 
 ```{r missing-data-vis}
+# create a data visualization of missing data in plants
 gg_miss_var(plant)
 ```
 
-Sub-setting the data by dropping NA's
+Sub-setting the data by dropping NA's using the drop_na function.
 
 ```{r subset-drop-na}
+# create subste of data dropping nas
 plant_subset <- plant %>% 
   drop_na(sla, chlorophyll, amass, num_lvs, num_phylls)
 ```
 
-Correlation Plot
-
-d\. Using a correlation plot we visually represented the relationship between numerical variables in our data set. Using Pearson's r, we found that the variables that have the strongest numerical relationship are num_lvs and amass, as well as sla and feedlevel and amass and sla. These variable relationships all have a Pearon's value of more that 0.3.
+Creating a correlation plot using corrplot and using Pearson's r. The variables are on botht he x and y axis and the Pearson's r value is shown by color coded numbers between variables. The Pearson's r value also shows whether the variables that intersect are positively or negatively related.
 
 ```{r corr-plot}
 # calculate pearson's r for numerical values only
@@ -81,11 +81,10 @@ corrplot(plant_cor,
          )
 ```
 
-Plot each variable against each other
-
-e\. Using a pairs plot we visually represented how the data in each variable relates to another data from another variable. Looking at all of the plots, some variables with visually strong relationships are sla and num_phylls, where the dot plot shows as sla increases num_phylls decreases. This is also true for the relationship between sla and feedlevel.
+Plot each variable against each other in a pairs plot using ggpairs. The variables are on both the y and x axis and where they intersect the pairs plot shows how correlated they are through dot plots and the species row shows a box plot with error bars. There are also correlation values shown between the variables.
 
 ```{r pairs-plot}
+# create a pirs plot (not correlation) for all of the variables
 plant_subset %>% 
   select(species:num_phylls) %>% 
   ggpairs()
@@ -93,7 +92,7 @@ plant_subset %>%
 
 Starting regression here:
 
-f\. We created a null model in order to test against the null hypothesis that there is no relationship with totmass, and created the full model with all of the variables. In order to create the null model we used totmass \~ 1, and for the full model we used totmass \~ all of the variables.
+In order to determine the predictability of different variables, we create the null and full linear models.
 
 ```{r null-and-full-models}
 # making a null model, which is represented by a one and we only want it from the plant_subset dataset
@@ -102,55 +101,59 @@ null <- lm(totmass ~ 1, data = plant_subset)
 full <- lm(totmass ~ species + feedlevel + sla + chlorophyll + amass + num_lvs + num_phylls, data = plant_subset)
 ```
 
-g\. We visually assessed normality and homeoscedasticity via diagnostic plots of the full model. The data looks borderline homeoscedastic because the data is sort of cone shaped, but the line of best fit is fairly straight. Using the Shapiro-Wilk's test shows that the data seems normally distributed and the Breush-Pagan test shows the variables have constant variance.
+Visually assessing the data using diagnostic plots for full model. The residuals vs fitted shows a fairly straight line with slightly cone shaped data. The normal q-q plot shows fairly uniform data and the scale-location shows a slightly positive linear relationship. The residuals vs leverage is pretty clumped but there are no data points past Cook's distance.
 
 ```{r full-diagnostic}
+# create a diagnostic plot for full model
 par(mfrow = c(2,2))
 plot(full)
 ```
 
 ```{r}
+# check normality and variance for full model
 check_normality(full)
 check_heteroscedasticity(full)
 ```
 
-h\. Despite the visual diagnostic plots showing the data to have constant variance and normality, the check for normality and homeoscedasticity show that the data is not normal and has non-constant variance. To fix this we transform the response variable in order to transform residuals to being normal. In order to do this we create null and full log models.
+Transform the response variable (take the log 10) to transform your residuals to be normal because most of the data from the field is not normal.
 
 ```{r transform-data}
+# transform data by taking the log of it
 full_log <- lm(log(totmass) ~ species + feedlevel + sla + chlorophyll + amass + num_lvs + num_phylls, data = plant_subset)
 
 null_log <- lm(log(totmass) ~ 1, data = plant_subset)
 
+# check transformed data for normality and const variance
 plot(full_log)
 check_normality(full_log)
 check_heteroscedasticity(full_log)
 ```
 
-Evaluate multicollinearity:
+Evaluate multicollinearity using vif.
 
 ```{r calculate-vif}
 car::vif(full_log)
 ```
 
-j\. We evaluated multicollinearity by calculating generalized variance inflation factor and determined that species is the variable with the greatest vif value. All of the other variables have very similar vif values, all being around 2 and 3, whereas species gvif value is 42.
-
 Trying models:
 
 Question: what predictor set of variables best explore the response?
 
-i\.
-
 ## Model 2
 
 ```{r model-2}
+# create a model with species predicting totmass
 model2_log <- lm(log(totmass) ~ species, data = plant_subset)
 ```
 
-Check assumptions for model 2:
+Check assumptions for model 2: using diagnostic plots and checking normality and variance. Data looks fairly normal with the line of best fit being fairly straight and no points past Cook's distance.
 
 ```{r model-2-assumptions}
+# plot the diagnostics for this model
+par(mfrow = c(2,2))
 plot(model2_log)
 
+# check for normality and variance
 check_normality(model2_log)
 check_heteroscedasticity(model2_log)
 ```
@@ -162,21 +165,26 @@ AICc(full_log)
 AICc(model2_log)
 AICc(null_log)
 
+# compare AIC values to null and full models
 MuMIn::AICc(full_log, model2_log, null_log)
 MuMIn::model.sel(full_log, model2_log, null_log)
 ```
 
-For model 2 we tested the relationship between species and totmass. This model had normal distribution and was homoscedastic, but the AIC value was greater than the full model. The AIC for model 2 was 157.6, whereas for the full model was 133.9, so the full model is still the best model but there is a very strong correlation between species and totmass.
-
 ## Model 3
 
 ```{r model-3}
+# create a model comparing feedlevel and totmass
 model3_log <- lm(log(totmass) ~ feedlevel, data = plant_subset)
 ```
 
+Check assumptions for model 3: using diagnostic plots and checking normality and variance. The data varies slightly from the normal line, especially in the normal q-q plot, but no data points are past Cook's distance.
+
 ```{r model-3-assumptions}
+# plot diagnostics for this model
+par(mfrow = c(2,2))
 plot(model3_log)
 
+# check distribution and variance
 check_normality(model3_log)
 check_heteroscedasticity(model3_log)
 ```
@@ -186,21 +194,26 @@ AICc(full_log)
 AICc(model3_log)
 AICc(null_log)
 
+# compare AIC values against full and null models
 MuMIn::AICc(full_log, model3_log, null_log)
 MuMIn::model.sel(full_log, model3_log, null_log)
 ```
 
-For model 3 we tested how the variable feedlevel predicts totmass. While this model is homoscedastic, it is not normally distributed but we still used it because it seemed to have a large correlation to totmass. The AIC value was 295.0 for model 3, which is much higher than the full model's 133.9 so the full model is still the best model.
-
 ## Model 4
 
 ```{r model-4}
+# create a model with num_phylls predicting totmass
 model4_log <- lm(log(totmass) ~ num_phylls, data = plant_subset)
 ```
 
+Check assumptions for model 4: using diagnostic plots and checking normality and variance. This data, especially the scale-location plot, varied form the normal line but there are still no data points past Cook's distance.
+
 ```{r model-4-assumptions}
+# run diagnostic plots for this model
+par(mfrow = c(2,2))
 plot(model4_log)
 
+# check distribution and variance
 check_normality(model4_log)
 check_heteroscedasticity(model4_log)
 ```
@@ -210,15 +223,14 @@ AICc(full_log)
 AICc(model4_log)
 AICc(null_log)
 
+# comapre this model aganst  null and full AIC values
 MuMIn::AICc(full_log, model4_log, null_log)
 MuMIn::model.sel(full_log, model4_log, null_log)
 ```
 
-For model 4 we tested the predictability of num_phylls on totmass. Again this model was homeoskedastic but had non-normal distribution, but we still used it because of its correlation to totmass. Model 4's AIC value was 293.9, so still much larger than the full model's AIC value (133.9) and therefore the full model is still the best model.
+Data was called using \[here\] into an object that holds all of the data from the data set called "plant". Then \[clean_names\] was used and the following columns were chosen to be shown within "plant": totmass, species, feedlevel, sla, chlorophyll, amass, num_lvs, and num_phylls. Missing data was visualized using \[gg_miss_var\]. The visualization shows that chlorophyll and amass have the most missing data, followed by sla, and then num_lvs and num_phylls, and the rest had no missing data. The "plant" data set was then made into a sub set to get rid of the missing data called "Nas". Using a correlation plot we visually represented the relationship between numerical variables in our data set. Using Pearson's r, we found that the variables that have the strongest numerical relationship are num_lvs and amass, as well as sla and feedlevel and amass and sla. These variable relationships all have a Pearon's value of more that 0.3. Using a pairs plot we visually represented how the data in each variable relates to another data from another variable. Looking at all of the plots, some variables with visually strong relationships are sla and num_phylls, where the dot plot shows as sla increases num_phylls decreases. This is also true for the relationship between sla and feedlevel. We created a null model in order to test against the null hypothesis that there is no relationship with totmass, and created the full model with all of the variables. In order to create the null model we used totmass \~ 1, and for the full model we used totmass \~ all of the variables. We visually assessed normality and homeoscedasticity via diagnostic plots of the full model. The data looks borderline homeoscedastic because the data is sort of cone shaped, but the line of best fit is fairly straight. Using the Shapiro-Wilk's test shows that the data seems normally distributed and the Breush-Pagan test shows the variables have constant variance. Despite the visual diagnostic plots showing the data to have constant variance and normality, the check for normality and homeoscedasticity show that the data is not normal and has non-constant variance. To fix this we transform the response variable in order to transform residuals to being normal. In order to do this we create null and full log models. We evaluated multicollinearity by calculating generalized variance inflation factor and determined that species is the variable with the greatest vif value. All of the other variables have very similar vif values, all being around 2 and 3, whereas species gvif value is 42. For model 2 we tested the relationship between species and totmass. This model had normal distribution and was homoscedastic, but the AIC value was greater than the full model. The AIC for model 2 was 157.6, whereas for the full model was 133.9, so the full model is still the best model but there is a very strong correlation between species and totmass. For model 3 we tested how the variable feedlevel predicts totmass. While this model is homoscedastic, it is not normally distributed but we still used it because it seemed to have a large correlation to totmass. The AIC value was 295.0 for model 3, which is much higher than the full model's 133.9 so the full model is still the best model. For model 4 we tested the predictability of num_phylls on totmass. Again this model was homeoskedastic but had non-normal distribution, but we still used it because of its correlation to totmass. Model 4's AIC value was 293.9, so still much larger than the full model's AIC value (133.9) and therefore the full model is still the best model.
 
 # Results
-
-a\. We found that the full model including feedlevel, species, sla, chlorophyll, amass, num_lvs, and num_phylls predictors best predicted a change in biomass. This model was chosen because despite testing single variables predictability of biomass, the full model consistently calculated the lowest AIC value and was therefore the best predictor model of biomass.
 
 ```{r}
 summary(full_log)
@@ -235,20 +247,23 @@ table <- tidy(full_log, conf.int = TRUE) %>%
 table
 ```
 
-b\. The full model includes all of the variables in the data set, so including not only the species (which is a good predictor but not as good of a model as the full model) but also the rest of the variables includes all of the factors of the plant on the change in biomass. Having the full picture of physiological, taxonomic, and morphological factors in the prediction of the change of biomass would be an accurate prediction.
-
-c\. Using model 2 to visualize how species predicts biomass:
+Model prediction using the species variable as the predictor of totmass, species on x axis and biomass on y axis in grams. The species include alabamensis, alata, flava, jonesii, leucophylla, minor, psittacina, purpurea, rosea, and rubra. This data is shown through a dot plot separated by species and the mean is shown with standard error as error bars with data scattered behind the bars.
 
 ```{r}
+# use ggpredict to make a model prediction using the full model
 model_pred <- ggpredict(full_log, terms = "species", back.transform = TRUE)
 
+# plot the predicted data 
 model_plot <- plot(model_pred, add.data = TRUE) +
+  # change the theme and make the titles different
   theme_classic() +
   labs(x = "Species", y = "Biomass (g)", title = "Predicted Biomass of Sarracenia Species") 
   
   
 model_plot
 ```
+
+We found that the full model including feedlevel, species, sla, chlorophyll, amass, num_lvs, and num_phylls predictors best predicted a change in biomass. This model was chosen because despite testing single variables predictability of biomass, the full model consistently calculated the lowest AIC value and was therefore the best predictor model of biomass. The full model includes all of the variables in the data set, so including not only the species (which is a good predictor but not as good of a model as the full model) but also the rest of the variables includes all of the factors of the plant on the change in biomass. The full model also conforms to normal distribution and constant variance checked by the check_normality and check_homeoskedasticity. Having the full picture of physiological, taxonomic, and morphological factors in the prediction of the change of biomass would be an accurate prediction. Using model 2 to visualize how species predicts biomass (while the full model is the bets model, the species predictor variable had the second lowest AIC value).
 
 Predicted biomass in grams of Sarracenia is plotted against the different species within the data set: alabamensis, alata, flava, jonesii, leucophylla, minor, psittacina, purpurea, rosea, and rubra. The different species differ dramatically in biomass, with leucophylla having the greatest preidcted biomass and psittacina having the smallest. The data is shown in a dot plot with means and standard error bars shown as well as data points shown behind it.
 
