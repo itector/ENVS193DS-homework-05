@@ -50,6 +50,7 @@ gg_miss_var(plant)
 Subsetting the data by dropping NAs:
 
 ```{r subset-drop-NAs}
+# create a subset of data without nas
 plant_subset <- plant %>% 
   drop_na(sla, chlorophyll, amass, num_lvs, num_phylls)
 ```
@@ -73,6 +74,7 @@ corrplot(plant_cor,
 Create a plot of each variable compared against others
 
 ```{r pairs-plot}
+# create a pairs plot visualization (not correlation)
 plant_subset %>% 
   select(species:num_phylls) %>% 
   ggpairs()
@@ -92,6 +94,7 @@ full <- lm(totmass ~ species + feedlevel + sla + chlorophyll + amass + num_lvs +
 We visually asses normality and homoscedasticity of residuals using diagnostic plots for the full model
 
 ```{r full-diagnostic}
+# create a full diagnostic for full model
 par(mfrow = c(2,2))
 plot(full)
 ```
@@ -103,6 +106,7 @@ Shapiro-Wilk test: null hypothesis- variable of interest are normally distribute
 Breush-Pagan test: null hypothesis- variable of interest has constant variance
 
 ```{r}
+# check normality of full model
 check_normality(full)
 check_heteroscedasticity(full)
 ```
@@ -110,10 +114,12 @@ check_heteroscedasticity(full)
 Transform the response variable (take the log 10) to transform your residuals to be normal because most of the data from the field is not normal.
 
 ```{r}
+# transform data using logs
 full_log <- lm(log(totmass) ~ species + feedlevel + sla + chlorophyll + amass + num_lvs + num_phylls, data = plant_subset)
 
 null_log <- lm(log(totmass) ~ 1, data = plant_subset)
 
+# recheck the normality and variance as well as diagnostic plots
 plot(full_log)
 check_normality(full_log)
 check_heteroscedasticity(full_log)
@@ -125,7 +131,7 @@ Evaluate multicollinearity:
 car::vif(full_log)
 ```
 
-We evaluated multicollinearity by calculating generalized variance inflation factor and determined that...
+We evaluated multicollinearity by calculating generalized variance inflation factor and determined tha
 
 trying models:
 
